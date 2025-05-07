@@ -1,6 +1,6 @@
 import streamlit as st
 import re
-from streamlit_copybutton import copybutton
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="SQL Placeholder Replacer", layout="wide")
 
@@ -39,9 +39,25 @@ if col1.button("🔁 Replace Placeholders"):
 
         col3, col4 = st.columns([1, 1])
         with col3:
-            st.download_button("📥 Download .sql file", final_sql, file_name="replaced_query.sql", mime="text/sql")
+            st.download_button(
+                "📥 Download .sql file",
+                final_sql,
+                file_name="replaced_query.sql",
+                mime="text/sql"
+            )
+
         with col4:
-            copybutton(final_sql, "📋 Copy SQL to clipboard")
+            st.markdown("### 📋 Copy to clipboard")
+            components.html(
+                f"""
+                <textarea id="sqlText" style="width:100%; height:120px;">{final_sql}</textarea>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('sqlText').value)"
+                        style="margin-top:10px;padding:8px 16px;font-size:16px;">
+                    ✅ Copy SQL
+                </button>
+                """,
+                height=200,
+            )
 
     except Exception as e:
         st.error(f"❌ Error: {str(e)}")
