@@ -53,4 +53,4 @@ if col1.button("🔁 Replace Placeholders"):
         st.error(f"❌ Error: {str(e)}")
 
 elif col2.button("🧹 Clear All"):
-    st.experimental_rerun()
+    st.rerun()
