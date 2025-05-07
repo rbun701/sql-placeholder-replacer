@@ -1,5 +1,6 @@
 import streamlit as st
 import re
+from streamlit_copybutton import copybutton
 
 st.set_page_config(page_title="SQL Placeholder Replacer", layout="wide")
 
@@ -12,7 +13,7 @@ This tool will auto-replace each `?` with your values — in order.
 sql_query = st.text_area("Paste SQL Query with `?` placeholders:", height=300)
 sql_inserts_raw = st.text_area("Paste SQL Inserts (e.g. `<Val1> <Val2>`):")
 
-# Create placeholder for results so we can always show Clear button
+# Placeholder for results
 result_area = st.empty()
 
 # Buttons
@@ -36,16 +37,14 @@ if col1.button("🔁 Replace Placeholders"):
         st.success("✅ Replacement complete!")
         result_area.code(final_sql, language='sql')
 
-        # Buttons: download + copy
         col3, col4 = st.columns([1, 1])
         with col3:
             st.download_button("📥 Download .sql file", final_sql, file_name="replaced_query.sql", mime="text/sql")
         with col4:
-            st.text_area("Copy to clipboard:", value=final_sql, height=100)
+            copybutton(final_sql, "📋 Copy SQL to clipboard")
 
     except Exception as e:
         st.error(f"❌ Error: {str(e)}")
 
-# Always show Clear All button
 if col2.button("🧹 Clear All"):
     st.rerun()
