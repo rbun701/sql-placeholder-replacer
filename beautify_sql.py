@@ -6,7 +6,7 @@ SQL_KEYWORDS = [
     'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'OUTER JOIN',
     'ON', 'AS', 'AND', 'OR', 'NOT', 'IN', 'IS', 'NULL', 'DISTINCT',
     'UNION', 'ALL', 'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE', 'CASE',
-    'WHEN', 'THEN', 'ELSE', 'END', 'LIMIT', 'OFFSET', 'ESCAPE'
+    'WHEN', 'THEN', 'ELSE', 'END', 'LIMIT', 'OFFSET', 'ESCAPE', 'PARTITION BY', 'WITH'
 ]
 
 def uppercase_keywords(sql: str) -> str:
@@ -68,15 +68,18 @@ def align_all_select_blocks(sql: str) -> str:
 
 # --- Ensure newline before major keywords ---
 def newline_before_keywords(sql: str) -> str:
-    keywords = [
-        'FROM', 'WHERE', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN',
-        'GROUP BY', 'ORDER BY', 'HAVING', 'ON'
-    ]
+    # Sort by length to catch "ORDER BY" before "ORDER"
+    keywords = sorted([
+        'PARTITION BY', 'GROUP BY', 'ORDER BY', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'INNER JOIN',
+        'FROM', 'WHERE', 'HAVING', 'JOIN'
+    ], key=len, reverse=True)
+
     for kw in keywords:
-        # Insert newline before keyword even if it's stuck after a comma or paren
-        pattern = re.compile(rf'(?<!\n)(\s*)({kw})\b', re.IGNORECASE)
-        sql = pattern.sub(r'\n\2', sql)
+        # Only insert newline when keyword is preceded by a character like ), ", or alphanum (but NOT already on its own line)
+        pattern = re.compile(rf'(?<=[\w")])\s+({re.escape(kw)})\b', re.IGNORECASE)
+        sql = pattern.sub(r'\n\1', sql)
     return sql
+
 
 # --- Clean up extra spaces ---
 def remove_extra_spaces(sql: str) -> str:
