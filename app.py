@@ -1,7 +1,7 @@
 import streamlit as st
 import re
 import streamlit.components.v1 as components
-import sqlparse
+from sql_formatter.core import format_sql
 
 st.set_page_config(page_title="SQL Placeholder Replacer", layout="wide")
 
@@ -34,9 +34,11 @@ if col1.button("🔁 Replace Placeholders"):
             return val
 
         final_sql = re.sub(r'\?', replacer, sql_query)
-        formatted_sql = sqlparse.format(final_sql, reindent=True, keyword_case='upper')
-        formatted_sql = re.sub(r'[ ]{2,}', ' ', formatted_sql)
-        formatted_sql = '\n'.join(line.strip() for line in formatted_sql.splitlines())
+        formatted_sql = format_sql(final_sql, 
+            keyword_case="upper", 
+            identifier_case="preserve", 
+            reindent=True
+        )
 
         st.success("✅ Replacement complete!")
         result_area.code(formatted_sql, language='sql')
