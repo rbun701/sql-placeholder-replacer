@@ -1,2 +1,2 @@
 streamlit
-sqlparse
+sql-formatter
