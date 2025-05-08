@@ -35,6 +35,8 @@ if col1.button("🔁 Replace Placeholders"):
 
         final_sql = re.sub(r'\?', replacer, sql_query)
         formatted_sql = sqlparse.format(final_sql, reindent=True, keyword_case='upper')
+        formatted_sql = re.sub(r'[ ]{2,}', ' ', formatted_sql)
+        formatted_sql = '\n'.join(line.strip() for line in formatted_sql.splitlines())
 
         st.success("✅ Replacement complete!")
         result_area.code(formatted_sql, language='sql')
