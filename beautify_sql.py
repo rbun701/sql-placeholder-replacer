@@ -74,10 +74,13 @@ def align_group_and_order_blocks(sql: str) -> str:
 
 # --- Newline fix for major clauses ---
 def newline_before_keywords(sql: str) -> str:
-    keywords = ['FROM', 'WHERE', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN',
-                'GROUP BY', 'ORDER BY', 'HAVING']
+    keywords = [
+        'FROM', 'WHERE', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN',
+        'GROUP BY', 'ORDER BY', 'HAVING'
+    ]
     for kw in keywords:
-        pattern = re.compile(rf'\s*({kw})\b', re.IGNORECASE)
+        # Insert a newline if keyword appears after a closing quote or number (no whitespace)
+        pattern = re.compile(rf'(?<=[\w")])\s*({kw})\b', re.IGNORECASE)
         sql = pattern.sub(r'\n\1', sql)
     return sql
 
