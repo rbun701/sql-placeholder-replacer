@@ -46,13 +46,13 @@ def align_clause_block(clause: str, expressions: list, indent_level=1) -> str:
 
 def format_clause_block(sql: str, clause: str, indent_level=1) -> str:
     pattern = re.compile(
-        rf'\b{clause}\b(.*?)(?=\n\b(?:SELECT|FROM|WHERE|HAVING|GROUP BY|ORDER BY|LIMIT|JOIN|LEFT JOIN|RIGHT JOIN|FULL JOIN|INNER JOIN)\b|$)',
+        rf'\b{clause}\b(.*?)(?=\b(?:SELECT|FROM|WHERE|HAVING|GROUP BY|ORDER BY|LIMIT|JOIN|LEFT OUTER JOIN|LEFT JOIN|RIGHT OUTER JOIN|RIGHT JOIN|FULL JOIN|INNER JOIN)\b|$)',
         re.IGNORECASE | re.DOTALL,
     )
     for match in pattern.finditer(sql):
         full = match.group(0)
         content = match.group(1)
-        expressions = re.split(r',(?![^()]*\))', content.strip())
+        expressions = re.split(r',(?![^()]*\))', content)
         aligned = align_clause_block(clause, expressions, indent_level)
         sql = sql.replace(full, aligned)
     return sql
@@ -71,6 +71,22 @@ def format_joins(sql: str) -> str:
 
     return pattern.sub(reformat, sql)
 
+
+def format_expression_clause(sql: str, clause: str, indent_level=1) -> str:
+    pattern = re.compile(
+        rf'\b{clause}\b(.*?)(?=\b(?:SELECT|FROM|WHERE|HAVING|GROUP BY|ORDER BY|LIMIT|JOIN|LEFT JOIN|RIGHT JOIN|FULL JOIN|INNER JOIN)\b|$)',
+        re.IGNORECASE | re.DOTALL,
+    )
+    matches = pattern.finditer(sql)
+    for match in matches:
+        full = match.group(0)
+        content = match.group(1)
+        expressions = re.split(r'\bAND\b', content)
+        indent = '  ' * indent_level
+        formatted = f'\n{clause.upper()}\n' + '\n'.join([f'{indent}{line.strip()}' for line in expressions])
+        sql = sql.replace(full, formatted)
+    return sql
+
 def remove_extra_spaces(sql: str) -> str:
     cleaned = []
     for line in sql.splitlines():
@@ -86,8 +102,9 @@ def beautify_sql(sql: str) -> str:
     sql = newline_before_keywords(sql)
     sql = format_joins(sql)
     sql = align_clause_block("SELECT", re.split(r',(?![^()]*\))', sql), indent_level=1)
-    sql = format_clause_block(sql, "GROUP BY", indent_level=2)
-    sql = format_clause_block(sql, "ORDER BY", indent_level=2)
-    sql = format_clause_block(sql, "WHERE", indent_level=2)
+    sql = format_expression_clause(sql, "WHERE", indent_level=4)
+    sql = format_expression_clause(sql, "HAVING", indent_level=4)
+    sql = format_clause_block(sql, "GROUP BY", indent_level=4)
+    sql = format_clause_block(sql, "ORDER BY", indent_level=4)
     sql = remove_extra_spaces(sql)
     return sql
