@@ -1,7 +1,7 @@
 import streamlit as st
 import re
 import streamlit.components.v1 as components
-from beautify_sql import align_all_select_blocks_flexible
+from beautify_sql import beautify_sql
 
 st.set_page_config(page_title="SQL Placeholder Replacer", layout="wide")
 
@@ -34,7 +34,7 @@ if col1.button("🔁 Replace Placeholders"):
             return val
 
         final_sql = re.sub(r'\?', replacer, sql_query)
-        formatted_sql = align_all_select_blocks_flexible(final_sql)
+        formatted_sql = beautify_sql(final_sql)
 
         st.success("✅ Replacement complete!")
         result_area.code(formatted_sql, language='sql')
