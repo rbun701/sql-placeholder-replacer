@@ -1,4 +1,5 @@
 import streamlit as st
+import sqlparse
 import re
 import streamlit.components.v1 as components
 from beautify_sql import beautify_sql
