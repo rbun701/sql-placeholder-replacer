@@ -68,8 +68,9 @@ def newline_before_keywords(sql: str) -> str:
         'GROUP BY', 'ORDER BY', 'HAVING', 'ON'
     ]
     for kw in keywords:
-        pattern = re.compile(rf'(?<!\n)\s*({kw})\b', re.IGNORECASE)
-        sql = pattern.sub(r'\n\1', sql)
+        # Insert newline before keyword even if it's stuck after a comma or paren
+        pattern = re.compile(rf'(?<!\n)(\s*)({kw})\b', re.IGNORECASE)
+        sql = pattern.sub(r'\n\2', sql)
     return sql
 
 # --- Clean up extra spaces ---
