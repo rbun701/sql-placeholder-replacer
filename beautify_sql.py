@@ -80,21 +80,43 @@ def newline_before_keywords(sql: str) -> str:
         sql = pattern.sub(r'\n\1', sql)
     return sql
 
+def format_joins(sql: str) -> str:
+    pattern = re.compile(r'(LEFT\s+JOIN|RIGHT\s+JOIN|FULL\s+JOIN|INNER\s+JOIN|JOIN)\s+(.*?)\s+ON\s+(.*?)(?=\b(LEFT|RIGHT|FULL|INNER|JOIN|WHERE|GROUP BY|ORDER BY|HAVING|$))', re.IGNORECASE | re.DOTALL)
+    def reformat(match):
+        join_type = match.group(1).upper()
+        table = match.group(2).strip()
+        on_clause = match.group(3).strip()
+        # Break ON clause by AND
+        on_lines = re.split(r'\bAND\b', on_clause)
+        on_lines = [f'    AND {line.strip()}' if idx != 0 else f'  ON {line.strip()}' for idx, line in enumerate(on_lines)]
+        return f'{join_type} {table}\n' + '\n'.join(on_lines)
+
+    return pattern.sub(reformat, sql)
+
 
 # --- Clean up extra spaces ---
 def remove_extra_spaces(sql: str) -> str:
+    # Clean up spacing within each line
     cleaned = []
     for line in sql.splitlines():
-        line = re.sub(r'\s{2,}', ' ', line)
-        cleaned.append(line.rstrip())
-    return '\n'.join(cleaned)
+        if ' AS ' in line:
+            cleaned.append(line.rstrip())
+        else:
+            cleaned.append(re.sub(r'\s{2,}', ' ', line.strip()))
+    
+    # Remove double (or more) blank lines
+    cleaned_sql = '\n'.join(cleaned)
+    cleaned_sql = re.sub(r'\n{3,}', '\n\n', cleaned_sql)  # reduce 3+ blank lines to just 1
+    return cleaned_sql
+
 
 # --- Final beautification pipeline ---
 def beautify_sql(sql: str) -> str:
     sql = uppercase_keywords(sql)
     sql = newline_before_keywords(sql)
+    sql = format_joins(sql)
     sql = align_all_select_blocks(sql)
-    sql = format_clause_block(sql, "GROUP BY", indent_level=4)
-    sql = format_clause_block(sql, "ORDER BY", indent_level=4)
+    sql = format_clause_block(sql, "GROUP BY", indent_level=2)
+    sql = format_clause_block(sql, "ORDER BY", indent_level=2)
     sql = remove_extra_spaces(sql)
     return sql
