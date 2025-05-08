@@ -40,7 +40,7 @@ def align_clause_block(clause: str, expressions: list) -> str:
             aligned.append(f'  {lhs},')
     if aligned:
         aligned[-1] = aligned[-1].rstrip(',')
-    return f'{clause}\n' + '\n'.join(aligned)
+    return f'{clause.upper()}\n' + '\n'.join(aligned)
 
 
 def format_clause_block(sql: str, clause: str) -> str:
@@ -63,10 +63,26 @@ def align_all_select_blocks(sql: str) -> str:
     return pattern.sub(formatter, sql)
 
 
-# --- Optional GROUP BY and ORDER BY alignment ---
+# --- GROUP BY / ORDER BY formatter with indentation ---
 def align_group_and_order_blocks(sql: str) -> str:
-    sql = format_clause_block(sql, "GROUP BY")
-    sql = format_clause_block(sql, "ORDER BY")
+    def align_clause(clause_name: str, sql: str) -> str:
+        pattern = re.compile(
+            rf'(\b{clause_name}\b)(.*?)(?=\b(WHERE|HAVING|ORDER BY|GROUP BY|FROM|LIMIT|SELECT|$))',
+            re.IGNORECASE | re.DOTALL,
+        )
+        matches = pattern.finditer(sql)
+        for match in matches:
+            clause = match.group(1).upper()
+            content = match.group(2).strip()
+            if not content:
+                continue
+            expressions = re.split(r',(?![^()]*\))', content)
+            aligned = "\n  " + ",\n  ".join(e.strip() for e in expressions)
+            sql = sql.replace(match.group(0), f"{clause}{aligned}")
+        return sql
+
+    sql = align_clause("GROUP BY", sql)
+    sql = align_clause("ORDER BY", sql)
     return sql
 
 
