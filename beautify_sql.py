@@ -4,26 +4,54 @@ SQL_KEYWORDS = [
     'SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING',
     'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'OUTER JOIN',
     'ON', 'AS', 'AND', 'OR', 'NOT', 'IN', 'IS', 'NULL', 'DISTINCT',
-    'UNION', 'ALL', 'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE',
+    'UNION', 'UNION ALL', 'EXCEPT', 'INTERSECT',  # <-- Add here
+    'ALL', 'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE',
     'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'LIMIT', 'OFFSET', 'ESCAPE', 'PARTITION BY', 'WITH'
 ]
 
 def uppercase_keywords(sql: str) -> str:
-    for kw in sorted(SQL_KEYWORDS, key=len, reverse=True):
-        pattern = re.compile(rf'\b{re.escape(kw)}\b', re.IGNORECASE)
-        sql = pattern.sub(kw, sql)
+    multi_word_keywords = [
+        'LEFT OUTER JOIN', 'RIGHT OUTER JOIN', 'FULL OUTER JOIN',
+        'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'INNER JOIN', 'OUTER JOIN',
+        'PARTITION BY', 'ORDER BY', 'GROUP BY',
+        'UNION ALL'  # <-- Add here
+    ]
+
+    single_word_keywords = [
+        'SELECT', 'FROM', 'WHERE', 'HAVING', 'JOIN', 'ON', 'AS', 'AND', 'OR', 'NOT',
+        'IN', 'IS', 'NULL', 'DISTINCT', 'UNION', 'ALL', 'EXCEPT', 'INTERSECT',  # <-- Add more here
+        'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE',
+        'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+        'LIMIT', 'OFFSET', 'ESCAPE', 'WITH'
+    ]
+
+
+    for phrase in sorted(multi_word_keywords, key=len, reverse=True):
+        sql = re.sub(re.escape(phrase), phrase.upper(), sql, flags=re.IGNORECASE)
+
+    for word in sorted(single_word_keywords, key=len, reverse=True):
+        sql = re.sub(rf'\b{word}\b', word.upper(), sql, flags=re.IGNORECASE)
+
     return sql
+
 
 def newline_before_keywords(sql: str) -> str:
     keywords = sorted([
-        'PARTITION BY', 'GROUP BY', 'ORDER BY', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'INNER JOIN',
+        'LEFT OUTER JOIN', 'RIGHT OUTER JOIN', 'FULL OUTER JOIN',
+        'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'INNER JOIN', 'OUTER JOIN',
+        'PARTITION BY', 'GROUP BY', 'ORDER BY',
+        'UNION ALL', 'UNION', 'EXCEPT', 'INTERSECT',  # <-- Added here
         'FROM', 'WHERE', 'HAVING', 'JOIN'
     ], key=len, reverse=True)
-
+    
     for kw in keywords:
-        pattern = re.compile(rf'(?<!\n)(?<!\w)(\s*)({re.escape(kw)})(?!\w)', re.IGNORECASE)
+        # Ensure newline appears before the full keyword, preserving it as one unit
+        # pattern = re.compile(rf'(?<!\n)(\s*)\b({re.escape(kw)})\b(?!\w)', re.IGNORECASE)
+        # pattern = re.compile(rf'(?<!\n)(\s*)\b({re.escape(kw)})(?=\b|\s|[(),])', re.IGNORECASE)
+        pattern = re.compile(rf'(?<!\n)(\s*)\b{re.escape(kw)}\b(?=\s|\(|$)', re.IGNORECASE)
         sql = pattern.sub(r'\n\2', sql)
     return sql
+
 
 def align_clause_block(clause: str, expressions: list, indent_level=1) -> str:
     parsed, max_len = [], 0
@@ -46,9 +74,10 @@ def align_clause_block(clause: str, expressions: list, indent_level=1) -> str:
 
 def format_clause_block(sql: str, clause: str, indent_level=1) -> str:
     pattern = re.compile(
-        rf'\b{clause}\b(.*?)(?=\b(?:SELECT|FROM|WHERE|HAVING|GROUP BY|ORDER BY|LIMIT|JOIN|LEFT OUTER JOIN|LEFT JOIN|RIGHT OUTER JOIN|RIGHT JOIN|FULL JOIN|INNER JOIN)\b|$)',
-        re.IGNORECASE | re.DOTALL,
+        rf'\b{clause}\b(.*?)(?=\n?\b(?:SELECT|FROM|WHERE|HAVING|GROUP BY|ORDER BY|LIMIT|LEFT OUTER JOIN|RIGHT OUTER JOIN|FULL OUTER JOIN|LEFT JOIN|RIGHT JOIN|FULL JOIN|INNER JOIN|JOIN)\b|--|;|$)',
+        re.IGNORECASE | re.DOTALL
     )
+
     for match in pattern.finditer(sql):
         full = match.group(0)
         content = match.group(1)
@@ -59,9 +88,10 @@ def format_clause_block(sql: str, clause: str, indent_level=1) -> str:
 
 def format_joins(sql: str) -> str:
     pattern = re.compile(
-        r'(LEFT\s+JOIN|RIGHT\s+JOIN|FULL\s+JOIN|INNER\s+JOIN|JOIN)\s+(.*?)\s+ON\s+(.*?)(?=\b(LEFT|RIGHT|FULL|INNER|JOIN|WHERE|GROUP BY|ORDER BY|HAVING|$))',
+        r'(LEFT\s+OUTER\s+JOIN|RIGHT\s+OUTER\s+JOIN|FULL\s+OUTER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN|FULL\s+JOIN|INNER\s+JOIN|JOIN)\s+(.*?)\s+ON\s+(.*?)(?=\b(LEFT|RIGHT|FULL|INNER|JOIN|WHERE|GROUP BY|ORDER BY|HAVING|$))',
         re.IGNORECASE | re.DOTALL
     )
+
 
     def reformat(match):
         join_type, table, on_clause = match.groups()[:3]
@@ -70,6 +100,13 @@ def format_joins(sql: str) -> str:
         return f'{join_type.upper()} {table.strip()}\n' + '\n'.join(formatted)
 
     return pattern.sub(reformat, sql)
+
+
+def format_union_clauses(sql: str) -> str:
+    for kw in ['UNION ALL', 'UNION', 'EXCEPT', 'INTERSECT']:
+        # sql = re.sub(rf'\s*({kw})\s*', rf'\n{kw}\n', sql, flags=re.IGNORECASE)
+        sql = re.sub(rf'(?<!\w)\s*({re.escape(kw)})\s*(?!\w)', rf'\n\1\n', sql, flags=re.IGNORECASE)
+    return sql
 
 
 def format_expression_clause(sql: str, clause: str, indent_level=1) -> str:
@@ -97,14 +134,25 @@ def remove_extra_spaces(sql: str) -> str:
     cleaned_sql = '\n'.join(cleaned)
     return re.sub(r'\n{3,}', '\n\n', cleaned_sql)
 
-def beautify_sql(sql: str) -> str:
-    sql = uppercase_keywords(sql)
-    sql = newline_before_keywords(sql)
-    sql = format_joins(sql)
-    sql = align_clause_block("SELECT", re.split(r',(?![^()]*\))', sql), indent_level=1)
-    sql = format_expression_clause(sql, "WHERE", indent_level=4)
-    sql = format_expression_clause(sql, "HAVING", indent_level=4)
-    sql = format_clause_block(sql, "GROUP BY", indent_level=4)
-    sql = format_clause_block(sql, "ORDER BY", indent_level=4)
-    sql = remove_extra_spaces(sql)
+def insert_spacing_between_clauses(sql: str) -> str:
+    clauses = ['WHERE', 'GROUP BY', 'ORDER BY', 'HAVING']
+    for clause in clauses:
+        sql = re.sub(rf'(\n{clause}\b)', r'\n\1', sql, flags=re.IGNORECASE)
     return sql
+
+def beautify_sql(sql: str) -> str:
+    try:
+        sql = uppercase_keywords(sql)
+        sql = newline_before_keywords(sql)
+        sql = format_clause_block(sql, "SELECT", indent_level=1)
+        sql = format_expression_clause(sql, "WHERE", indent_level=4)
+        sql = format_expression_clause(sql, "HAVING", indent_level=4)
+        sql = format_clause_block(sql, "GROUP BY", indent_level=4)
+        sql = format_clause_block(sql, "ORDER BY", indent_level=4)
+        sql = format_joins(sql)
+        sql = format_union_clauses(sql)
+        sql = remove_extra_spaces(sql)
+        sql = insert_spacing_between_clauses(sql)
+        return sql
+    except Exception as e:
+        return f"-- Failed to beautify SQL due to: {e}\n\n{sql}"
