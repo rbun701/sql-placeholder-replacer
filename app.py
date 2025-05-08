@@ -1,7 +1,7 @@
 import streamlit as st
 import re
 import streamlit.components.v1 as components
-from sql_formatter.core import format_sql
+from beautify_sql import align_all_select_blocks_flexible
 
 st.set_page_config(page_title="SQL Placeholder Replacer", layout="wide")
 
@@ -34,11 +34,7 @@ if col1.button("🔁 Replace Placeholders"):
             return val
 
         final_sql = re.sub(r'\?', replacer, sql_query)
-        formatted_sql = format_sql(final_sql, 
-            keyword_case="upper", 
-            identifier_case="preserve", 
-            reindent=True
-        )
+        formatted_sql = align_all_select_blocks_flexible(final_sql)
 
         st.success("✅ Replacement complete!")
         result_area.code(formatted_sql, language='sql')
@@ -56,7 +52,7 @@ if col1.button("🔁 Replace Placeholders"):
             st.markdown("### 📋 Copy to clipboard")
             components.html(
                 f"""
-                <textarea id="sqlText" style="width:100%; height:120px;">{final_sql}</textarea>
+                <textarea id="sqlText" style="width:100%; height:120px;">{formatted_sql}</textarea>
                 <button onclick="navigator.clipboard.writeText(document.getElementById('sqlText').value)"
                         style="margin-top:10px;padding:8px 16px;font-size:16px;">
                     ✅ Copy SQL
