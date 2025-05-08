@@ -1,3 +1,4 @@
+
 import re
 
 # --- SQL Keyword Casing ---
@@ -64,25 +65,31 @@ def align_all_select_blocks(sql: str) -> str:
 
 
 # --- GROUP BY / ORDER BY formatter with indentation ---
-def align_group_and_order_blocks(sql: str) -> str:
-    def align_clause(clause_name: str, sql: str) -> str:
+def format_group_and_order_clauses(sql: str) -> str:
+    def process_clause(clause_name: str, sql: str) -> str:
         pattern = re.compile(
             rf'(\b{clause_name}\b)(.*?)(?=\b(WHERE|HAVING|ORDER BY|GROUP BY|FROM|LIMIT|SELECT|$))',
             re.IGNORECASE | re.DOTALL,
         )
-        matches = pattern.finditer(sql)
-        for match in matches:
+
+        def replacer(match):
             clause = match.group(1).upper()
             content = match.group(2).strip()
-            if not content:
-                continue
-            expressions = re.split(r',(?![^()]*\))', content)
-            aligned = "\n  " + ",\n  ".join(e.strip() for e in expressions)
-            sql = sql.replace(match.group(0), f"{clause}{aligned}")
-        return sql
 
-    sql = align_clause("GROUP BY", sql)
-    sql = align_clause("ORDER BY", sql)
+            if not content:
+                return match.group(0)
+
+            if content.startswith('\n'):
+                content = content[1:]
+
+            expressions = re.split(r',(?![^()]*\))', content)
+            aligned = '\n  ' + ',\n  '.join(e.strip() for e in expressions)
+            return f"{clause}{aligned}"
+
+        return pattern.sub(replacer, sql)
+
+    sql = process_clause("GROUP BY", sql)
+    sql = process_clause("ORDER BY", sql)
     return sql
 
 
@@ -101,6 +108,6 @@ def remove_extra_spaces(sql: str) -> str:
 def beautify_sql(sql: str) -> str:
     sql = uppercase_keywords(sql)
     sql = align_all_select_blocks(sql)
-    sql = align_group_and_order_blocks(sql)
+    sql = format_group_and_order_clauses(sql)
     sql = remove_extra_spaces(sql)
     return sql
