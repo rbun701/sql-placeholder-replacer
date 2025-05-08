@@ -31,7 +31,7 @@ def align_clause_block(clause: str, expressions: list, indent_level=1) -> str:
             parsed.append((line.strip(), None))
             max_len = max(max_len, len(line.strip()))
     aligned = []
-    indent = ' ' * (indent_level * 4)
+    indent = '  ' * indent_level
     for lhs, rhs in parsed:
         if rhs:
             padding = ' ' * (max_len - len(lhs))
@@ -44,14 +44,19 @@ def align_clause_block(clause: str, expressions: list, indent_level=1) -> str:
 
 # --- Apply alignment logic to each clause ---
 def format_clause_block(sql: str, clause: str, indent_level=1) -> str:
-    pattern = re.compile(rf'\b{clause}\b(.*?)(?=\bWHERE\b|\bHAVING\b|\bORDER BY\b|\bGROUP BY\b|\bFROM\b|\bLIMIT\b|$)', re.IGNORECASE | re.DOTALL)
+    pattern = re.compile(
+        rf'\b{clause}\b(.*?)(?=\n\b(?:SELECT|FROM|WHERE|HAVING|GROUP BY|ORDER BY|LIMIT|JOIN|LEFT JOIN|RIGHT JOIN|FULL JOIN|INNER JOIN)\b|$)',
+        re.IGNORECASE | re.DOTALL,
+    )
     matches = pattern.finditer(sql)
     for match in matches:
+        full = match.group(0)
         content = match.group(1)
         expressions = re.split(r',(?![^()]*\))', content.strip())
-        aligned_block = align_clause_block(clause, expressions, indent_level)
-        sql = sql.replace(match.group(0), aligned_block)
+        aligned = align_clause_block(clause, expressions, indent_level)
+        sql = sql.replace(full, aligned)
     return sql
+
 
 # --- Format SELECT blocks even inside subqueries ---
 def align_all_select_blocks(sql: str) -> str:
@@ -86,7 +91,7 @@ def beautify_sql(sql: str) -> str:
     sql = uppercase_keywords(sql)
     sql = newline_before_keywords(sql)
     sql = align_all_select_blocks(sql)
-    sql = format_clause_block(sql, "GROUP BY", indent_level=2)
-    sql = format_clause_block(sql, "ORDER BY", indent_level=2)
+    sql = format_clause_block(sql, "GROUP BY", indent_level=4)
+    sql = format_clause_block(sql, "ORDER BY", indent_level=4)
     sql = remove_extra_spaces(sql)
     return sql
